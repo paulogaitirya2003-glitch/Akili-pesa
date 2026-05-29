@@ -1,3 +1,6 @@
+// netlify/functions/claude.js
+// AI function - inatumia Google Gemini API
+
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
@@ -7,7 +10,9 @@ exports.handler = async function (event) {
   if (!GEMINI_API_KEY) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "API key haijawekwa. Weka GEMINI_API_KEY kwenye Netlify Environment Variables." }),
+      body: JSON.stringify({
+        error: "Weka GEMINI_API_KEY kwenye Netlify Environment Variables.",
+      }),
     };
   }
 
@@ -21,15 +26,14 @@ exports.handler = async function (event) {
       parts: [{ text: m.content }],
     }));
 
-    const systemInstruction = system
-      ? { parts: [{ text: system }] }
-      : undefined;
-
     const payload = {
       contents,
       generationConfig: { maxOutputTokens: 1000, temperature: 0.7 },
     };
-    if (systemInstruction) payload.systemInstruction = systemInstruction;
+
+    if (system) {
+      payload.systemInstruction = { parts: [{ text: system }] };
+    }
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -45,16 +49,13 @@ exports.handler = async function (event) {
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     };
   } catch (err) {
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
-    };
+      };
   }
-}; 
+};
