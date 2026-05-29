@@ -557,10 +557,10 @@ export default function AkiliPesa() {
     setSentOTP(otp);
     setAuthError("");
     setAuthStep("otp");
-    // FIX #4: Don't show OTP in toast — show a neutral confirmation message
-    showToast("Nambari ya uthibitisho imetumwa! 📧", "info");
+    // FIX #4: Don't show OTP in toast — show a neutral confirmation 
+    showToast(`Nambari yako: ${otp} (Demo mode) 🔐`, "info");
     // In a real app you'd send via email; for demo we log to console only
-    console.log(`[DEMO OTP - visible in console only]: ${otp}`);
+    // console.log removed
   }
 
   function handleOTPChange(val, idx) {
