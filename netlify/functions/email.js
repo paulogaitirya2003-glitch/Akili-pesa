@@ -1,7 +1,5 @@
 // netlify/functions/email.js
-// Inatuma OTP kwa Gmail - inahitaji GMAIL_USER na GMAIL_PASS kwenye Netlify env vars
-
-const nodemailer = require("nodemailer");
+// Inatuma OTP kwa Brevo API — fetch tu, hakuna npm packages
 
 function buildEmailHTML(name, otp) {
   return `<!DOCTYPE html>
@@ -31,8 +29,8 @@ function buildEmailHTML(name, otp) {
           </td>
         </tr>
         <tr>
-          <td style="background:#18243A;padding:16px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
-            <p style="color:#4A6080;font-size:11px;margin:0;">© ${new Date().getFullYear()} Akili Pesa 💚</p>
+          <td style="background:#18243A;padding:16px;text-align:center;">
+            <p style="color:#4A6080;font-size:11px;margin:0;">© 2025 Akili Pesa 💚</p>
           </td>
         </tr>
       </table>
@@ -43,72 +41,72 @@ function buildEmailHTML(name, otp) {
 }
 
 exports.handler = async function (event) {
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-      },
-      body: "",
-    };
-  }
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
+  };
 
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
+  if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: "Method Not Allowed" };
 
-  const GMAIL_USER = process.env.GMAIL_USER;
-  const GMAIL_PASS = process.env.GMAIL_PASS;
-
-  if (!GMAIL_USER || !GMAIL_PASS) {
+  const BREVO_API_KEY = process.env.BREVO_API_KEY;
+  if (!BREVO_API_KEY) {
     return {
       statusCode: 503,
-      headers: { "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ error: "Weka GMAIL_USER na GMAIL_PASS kwenye Netlify env vars" }),
+      headers,
+      body: JSON.stringify({ error: "Weka BREVO_API_KEY kwenye Netlify env vars" }),
     };
   }
 
-  let body;
+  let parsed;
   try {
-    body = JSON.parse(event.body || "{}");
+    parsed = JSON.parse(event.body || "{}");
   } catch {
-    return { statusCode: 400, body: "Invalid JSON" };
+    return { statusCode: 400, headers, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
 
-  const { to, otp, name } = body;
+  const { to, otp, name } = parsed;
   if (!to || !otp || !name) {
-    return { statusCode: 400, body: "Missing: to, otp, name" };
+    return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing: to, otp, name" }) };
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: GMAIL_USER,
-        pass: GMAIL_PASS,
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": BREVO_API_KEY,
       },
+      body: JSON.stringify({
+        sender: {
+          name: "Akili Pesa",
+          email: process.env.BREVO_SENDER_EMAIL || "Paulomkenya0@gmail.com",
+        },
+        to: [{ email: to, name: name }],
+        subject: `${otp} — Nambari yako ya Akili Pesa`,
+        htmlContent: buildEmailHTML(name, otp),
+        textContent: `Habari ${name}!\n\nOTP yako ni: ${otp}\n\nInaisha dakika 10.\n\n— Akili Pesa`,
+      }),
     });
 
-    await transporter.sendMail({
-      from: `"Akili Pesa 🦁" <${GMAIL_USER}>`,
-      to,
-      subject: `${otp} — Nambari yako ya Akili Pesa`,
-      html: buildEmailHTML(name, otp),
-      text: `Habari ${name}!\n\nOTP yako ni: ${otp}\n\nInaisha dakika 10.\n\n— Akili Pesa`,
-    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || JSON.stringify(data));
+    }
 
     return {
       statusCode: 200,
-      headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ ok: true, message: "OTP imetumwa!" }),
     };
   } catch (err) {
-    console.error("Gmail error:", err);
+    console.error("Brevo error:", err);
     return {
       statusCode: 500,
-      headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ error: "Imeshindwa kutuma", detail: err.message }),
     };
   }
