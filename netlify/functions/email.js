@@ -82,7 +82,7 @@ exports.handler = async function (event) {
       body: JSON.stringify({
         sender: {
           name: "Akili Pesa",
-          email: process.env.BREVO_SENDER_EMAIL || "Paulomkenya0@gmail.com",
+          email: process.env.BREVO_SENDER_EMAIL || "paulomkenya0@gmail.com",
         },
         to: [{ email: to, name: name }],
         subject: `${otp} — Nambari yako ya Akili Pesa`,
