@@ -561,17 +561,24 @@ export default function AkiliPesa() {
     setAuthError("");
     setOtpSending(true);
 
-    // Try to send real email via Netlify Function
-    let emailSent = false;
-    try {
-      const res = await fetch("/.netlify/functions/email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: email, otp, name }),
-      });
-      if (res.ok) emailSent = true;
-    } catch (_) {}
-
+// Try to send real email via Netlify Function
+let emailSent = false;
+try {
+  const res = await fetch("/.netlify/functions/email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ to: email, otp, name }),
+  });
+  const data = await res.json();
+  if (res.ok && data.ok) {
+    emailSent = true;
+  } else {
+    console.error("Email function error:", data);
+    setAuthError(`Email error: ${data.error || data.detail || JSON.stringify(data)}`);
+  }
+} catch (err) {
+  console.error("Fetch failed:", err);
+}
     setOtpSending(false);
     setAuthStep("otp");
 
